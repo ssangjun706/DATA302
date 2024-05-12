@@ -1,0 +1,14 @@
+Dataset: eth, Pred Len: 12, ADE: 0.71, FDE: 1.31
+Dataset: eth, Pred Len: 8, ADE: 0.58, FDE: 1.15
+Dataset: hotel, Pred Len: 12, ADE: 0.48, FDE: 1.02
+Dataset: hotel, Pred Len: 8, ADE: 0.36, FDE: 0.71
+Dataset: univ, Pred Len: 12, ADE: 0.56, FDE: 1.18
+Dataset: univ, Pred Len: 8, ADE: 0.33, FDE: 0.70
+Dataset: zara1, Pred Len: 12, ADE: 0.34, FDE: 0.68
+Dataset: zara1, Pred Len: 8, ADE: 0.21, FDE: 0.41
+Dataset: zara2, Pred Len: 12, ADE: 0.31, FDE: 0.65
+Dataset: zara2, Pred Len: 8, ADE: 0.21, FDE: 0.43
+Dataset: my, Pred Len: 8, ADE: 5.42, FDE: 9.20
+
+# transformer model
+Dataset: my, Pred Len: 8, ADE: 2.45, FDE: 4.73
