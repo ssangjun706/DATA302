@@ -2,7 +2,7 @@
 <project version="4">
   <component name="ProjectModuleManager">
     <modules>
-      <module fileurl="file://$PROJECT_DIR$/.idea/SocialGAN_imitate.iml" filepath="$PROJECT_DIR$/.idea/SocialGAN_imitate.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/sgan-master.iml" filepath="$PROJECT_DIR$/.idea/sgan-master.iml" />
     </modules>
   </component>
 </project>
