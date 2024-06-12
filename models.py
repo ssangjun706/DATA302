@@ -350,13 +350,27 @@ class PhysicalPooling(nn.Module):
         return output
 
 class CrossAttention(nn.Module):
-    def __init__(self, x_size, y_size):
+    def __init__(self, x_size, y_size, img_proj=False):
         super(CrossAttention, self).__init__()
+        self.projection = img_proj
+        self.linear = nn.Sequential(
+            nn.Linear(x_size, input_size),
+            nn.ReLU(),
+            nn.Linear(x_size, 512),
+            nn.ReLU(),
+            nn.Linear(512, x_size),
+            nn.ReLU(),
+            nn.Linear(y_size, y_size),
+            nn.ReLU(),
+        )
+
         self.Wq = nn.Linear(x_size, y_size)
         self.Wk = nn.Linear(y_size, y_size)
         self.Wv = nn.Linear(y_size, y_size)
 
     def forward(self, x, y):
+        if self.projection is True:
+            x = self.linear(x)
         q = self.Wq(x)
         k = self.Wk(y)
         v = self.Wv(y)
@@ -372,7 +386,7 @@ class TrajectoryGenerator(nn.Module):
         noise_type='gaussian', noise_mix_type='ped', pooling_type=None,
         pool_every_timestep=True, dropout=0.0, bottleneck_dim=1024, feature_size=1000,
         activation='relu', batch_norm=True, neighborhood_size=2.0, grid_size=8,
-        img_pool=False,
+        img_pool=True,
     ):
         super(TrajectoryGenerator, self).__init__()
 
@@ -420,12 +434,13 @@ class TrajectoryGenerator(nn.Module):
         )
 
         self.physical_pooling = PhysicalPooling(
-            input_size=feature_size, output_size=decoder_h_dim
+            input_size=feature_size, output_size=decoder_h_dim,
         )
 
         self.attn = CrossAttention(
             feature_size if not img_pool else decoder_h_dim,
-            decoder_h_dim
+            decoder_h_dim,
+            True if not img_pool else False
         )
 
         if pooling_type == 'pool_net':

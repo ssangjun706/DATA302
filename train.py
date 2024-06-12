@@ -12,11 +12,8 @@ import torch.optim as optim
 from trajectories import data_loader
 from utils import gan_g_loss, gan_d_loss, l2_loss, displacement_error, final_displacement_error
 
-from models_GRU import TrajectoryGenerator as TrajectoryGeneratorGRU
-from models_GRU import TrajectoryDiscriminator as TrajectoryDiscriminatorGRU
-
-from models_LSTM import TrajectoryGenerator as TrajectoryGeneratorLSTM
-from models_LSTM import TrajectoryDiscriminator as TrajectoryDiscriminatorLSTM
+from models import TrajectoryGenerator as TrajectoryGenerator
+from models import TrajectoryDiscriminator as TrajectoryDiscriminator
 
 from utils import int_tuple, bool_flag, get_total_norm
 from utils import relative_to_abs, get_dset_path
@@ -26,8 +23,7 @@ torch.backends.cudnn.benchmark = True
 parser = argparse.ArgumentParser()
 
 # Dataset options
-parser.add_argument('--dataset_name', default='sdd', type=str)
-parser.add_argument('--model_type', default='gru', type=str)
+parser.add_argument('--dataset_name', default='eth', type=str)
 parser.add_argument('--delim', default='\t')
 parser.add_argument('--loader_num_workers', default=4, type=int)
 parser.add_argument('--obs_len', default=8, type=int)
@@ -36,15 +32,15 @@ parser.add_argument('--skip', default=1, type=int)
 
 # Optimization
 parser.add_argument('--batch_size', default=64, type=int)
-parser.add_argument('--num_iterations', default=10000, type=int)
+parser.add_argument('--num_iterations', default=1000, type=int)
 parser.add_argument('--num_epochs', default=200, type=int)
 
 # Model Options
 parser.add_argument('--embedding_dim', default=64, type=int)
 parser.add_argument('--num_layers', default=1, type=int)
 parser.add_argument('--dropout', default=0.0, type=float)
-parser.add_argument('--batch_norm', default=1, type=bool_flag)
-parser.add_argument('--mlp_dim', default=512, type=int)
+parser.add_argument('--batch_norm', default=0, type=bool_flag)
+parser.add_argument('--mlp_dim', default=1024, type=int)
 parser.add_argument('--feature_size', default=1000, type=int)
 
 # Generator Options
@@ -54,7 +50,7 @@ parser.add_argument('--noise_dim', default=None, type=int_tuple)
 parser.add_argument('--noise_type', default='gaussian')
 parser.add_argument('--noise_mix_type', default='ped')
 parser.add_argument('--clipping_threshold_g', default=0, type=float)
-parser.add_argument('--g_learning_rate', default=5e-3, type=float)
+parser.add_argument('--g_learning_rate', default=5e-4, type=float)
 parser.add_argument('--g_steps', default=1, type=int)
 
 # Pooling Options
@@ -62,16 +58,16 @@ parser.add_argument('--pooling_type', default='pool_net')
 parser.add_argument('--pool_every_timestep', default=1, type=bool_flag)
 
 # Pool Net Option
-parser.add_argument('--bottleneck_dim', default=512, type=int)
+parser.add_argument('--bottleneck_dim', default=1024, type=int)
 
 # Social Pooling Options
 parser.add_argument('--neighborhood_size', default=2.0, type=float)
-parser.add_argument('--grid_size', default=16, type=int)
+parser.add_argument('--grid_size', default=8, type=int)
 
 # Discriminator Options
 parser.add_argument('--d_type', default='local', type=str)
 parser.add_argument('--encoder_h_dim_d', default=128, type=int)
-parser.add_argument('--d_learning_rate', default=5e-3, type=float)
+parser.add_argument('--d_learning_rate', default=5e-4, type=float)
 parser.add_argument('--d_steps', default=2, type=int)
 parser.add_argument('--clipping_threshold_d', default=0, type=float)
 
@@ -82,7 +78,7 @@ parser.add_argument('--best_k', default=1, type=int)
 # Output
 parser.add_argument('--output_dir', default=os.getcwd())
 parser.add_argument('--print_every', default=5, type=int)
-parser.add_argument('--checkpoint_every', default=10, type=int)
+parser.add_argument('--checkpoint_every', default=100, type=int)
 parser.add_argument('--checkpoint_name', default='checkpoint')
 parser.add_argument('--checkpoint_start_from', default=None)
 parser.add_argument('--restore_from_checkpoint', default=1, type=int)
@@ -116,7 +112,6 @@ def main(args):
 
     long_dtype, float_dtype = get_dtypes(args)
 
-    print("You are running at {}".format(args.model_type))
     print("Current dataset: {}".format(args.dataset_name))
     print("Initializing train dataset")
     train_dset, train_loader = data_loader(args, train_path)
@@ -131,27 +126,7 @@ def main(args):
         'There are {} iterations per epoch'.format(iterations_per_epoch)
     )
 
-    if args.model_type == 'lstm':
-        generator = TrajectoryGeneratorLSTM(
-            obs_len=args.obs_len,
-            pred_len=args.pred_len,
-            embedding_dim=args.embedding_dim,
-            encoder_h_dim=args.encoder_h_dim_g,
-            decoder_h_dim=args.decoder_h_dim_g,
-            mlp_dim=args.mlp_dim,
-            num_layers=args.num_layers,
-            noise_dim=args.noise_dim,
-            noise_type=args.noise_type,
-            noise_mix_type=args.noise_mix_type,
-            pooling_type=args.pooling_type,
-            pool_every_timestep=args.pool_every_timestep,
-            dropout=args.dropout,
-            bottleneck_dim=args.bottleneck_dim,
-            neighborhood_size=args.neighborhood_size,
-            grid_size=args.grid_size,
-            batch_norm=args.batch_norm)
-    else:
-        generator = TrajectoryGeneratorGRU(
+    generator = TrajectoryGenerator(
             obs_len=args.obs_len,
             pred_len=args.pred_len,
             embedding_dim=args.embedding_dim,
@@ -172,22 +147,10 @@ def main(args):
 
     generator.apply(init_weights)
     generator.type(float_dtype).train()
-    # print('Here is the generator of {}:'.format(args.model_type))
+    # print('Here is the generator')
     # print(generator)
 
-    if args.model_type == 'lstm':
-        discriminator = TrajectoryDiscriminatorLSTM(
-            obs_len=args.obs_len,
-            pred_len=args.pred_len,
-            embedding_dim=args.embedding_dim,
-            h_dim=args.encoder_h_dim_d,
-            mlp_dim=args.mlp_dim,
-            num_layers=args.num_layers,
-            dropout=args.dropout,
-            batch_norm=args.batch_norm,
-            d_type=args.d_type)
-    else:
-        discriminator = TrajectoryDiscriminatorGRU(
+    discriminator = TrajectoryDiscriminator(
             obs_len=args.obs_len,
             pred_len=args.pred_len,
             embedding_dim=args.embedding_dim,
@@ -200,7 +163,7 @@ def main(args):
 
     discriminator.apply(init_weights)
     discriminator.type(float_dtype).train()
-    # print('Here is the discriminator of {}:'.format(args.model_type))
+    # print('Here is the discriminator'))
     # print(discriminator)
 
     g_loss_fn = gan_g_loss
@@ -217,7 +180,7 @@ def main(args):
         restore_path = args.checkpoint_start_from
     elif args.restore_from_checkpoint == 1:
         restore_path = os.path.join(args.output_dir,
-                                    '%s_with_model_%s.pt' % (args.checkpoint_name, args.model_type))
+                                    '%s_with_model.pt' % args.checkpoint_name)
 
     if restore_path is not None and os.path.isfile(restore_path):
         print('Restoring from checkpoint {}'.format(restore_path))
@@ -354,7 +317,7 @@ def main(args):
                 checkpoint['d_state'] = discriminator.state_dict()
                 checkpoint['d_optim_state'] = optimizer_d.state_dict()
                 checkpoint_path = os.path.join(
-                    args.output_dir, '%s_with_model_%s.pt' % (args.checkpoint_name, args.model_type)
+                    args.output_dir, '%s_with_model.pt' % args.checkpoint_name
                 )
                 # print('Saving checkpoint to {}'.format(checkpoint_path))
                 torch.save(checkpoint, checkpoint_path)
