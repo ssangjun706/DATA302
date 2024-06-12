@@ -6,8 +6,7 @@ from attrdict import AttrDict
 
 from trajectories import data_loader
 
-from models_GRU import TrajectoryGenerator as TrajectoryGeneratorGRU
-from models_LSTM import TrajectoryGenerator as TrajectoryGeneratorLSTM
+from models import TrajectoryGenerator as TrajectoryGenerator
 
 from utils import relative_to_abs, get_dset_path, displacement_error, final_displacement_error
 
@@ -19,27 +18,7 @@ parser.add_argument('--dset_type', default='test', type=str)
 
 def get_generator(checkpoint):
     args = AttrDict(checkpoint['args'])
-    if args.model_type == 'lstm':
-        generator = TrajectoryGeneratorLSTM(
-            obs_len=args.obs_len,
-            pred_len=args.pred_len,
-            embedding_dim=args.embedding_dim,
-            encoder_h_dim=args.encoder_h_dim_g,
-            decoder_h_dim=args.decoder_h_dim_g,
-            mlp_dim=args.mlp_dim,
-            num_layers=args.num_layers,
-            noise_dim=args.noise_dim,
-            noise_type=args.noise_type,
-            noise_mix_type=args.noise_mix_type,
-            pooling_type=args.pooling_type,
-            pool_every_timestep=args.pool_every_timestep,
-            dropout=args.dropout,
-            bottleneck_dim=args.bottleneck_dim,
-            neighborhood_size=args.neighborhood_size,
-            grid_size=args.grid_size,
-            batch_norm=args.batch_norm)
-    else:
-        generator = TrajectoryGeneratorGRU(
+    generator = TrajectoryGenerator(
             obs_len=args.obs_len,
             pred_len=args.pred_len,
             embedding_dim=args.embedding_dim,
