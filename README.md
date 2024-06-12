@@ -1,3 +1,10 @@
+# Overview
+## GRU Model
+![](assets/sgan-modified-no-pool.png)
+
+## GRU with Image Pool
+![](assets/sgan-modified-pool.png)
+
 ## Average running time
 |     | LSTM          | GRU | GRU+POOL      |
 |-----|---------------|-----|---------------|
