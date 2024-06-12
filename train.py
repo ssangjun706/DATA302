@@ -33,7 +33,7 @@ parser.add_argument('--skip', default=1, type=int)
 # Optimization
 parser.add_argument('--batch_size', default=64, type=int)
 parser.add_argument('--num_iterations', default=1000, type=int)
-parser.add_argument('--num_epochs', default=200, type=int)
+parser.add_argument('--num_epochs', default=400, type=int)
 
 # Model Options
 parser.add_argument('--embedding_dim', default=64, type=int)
@@ -189,9 +189,9 @@ def main(args):
         discriminator.load_state_dict(checkpoint['d_state'])
         optimizer_g.load_state_dict(checkpoint['g_optim_state'])
         optimizer_d.load_state_dict(checkpoint['d_optim_state'])
-        t = checkpoint['counters']['t']
-        epoch = checkpoint['counters']['epoch']
-        checkpoint['restore_ts'].append(t) # t
+        t = 0#checkpoint['counters']['t']
+        epoch = 0#checkpoint['counters']['epoch']
+        checkpoint['restore_ts'].append(0) # t
     else:
         # Starting from scratch, so initialize checkpoint data structure
         t, epoch = 0, 0
@@ -219,15 +219,16 @@ def main(args):
             'best_t': None,
         }
     t0 = None
-    total = 0
+    cum, itr = 0, 0
     while t < args.num_iterations:
-        start = time.time()
 
         gc.collect()
         d_steps_left = args.d_steps
         g_steps_left = args.g_steps
         epoch += 1
+        itr += 1
         print('Starting epoch {}'.format(epoch))
+        start = time.time()
         for batch in train_loader:
             if args.timing == 1:
                 torch.cuda.synchronize()
@@ -270,13 +271,13 @@ def main(args):
             # Maybe save loss
             if t % args.print_every == 0:
                 print('t = {} / {}'.format(t + 1, args.num_iterations))
-                # for k, v in sorted(losses_d.items()):
-                #     print('  [D] {}: {:.3f}'.format(k, v))
-                #     checkpoint['D_losses'][k].append(v)
-                # for k, v in sorted(losses_g.items()):
-                #     print('  [G] {}: {:.3f}'.format(k, v))
-                #     checkpoint['G_losses'][k].append(v)
-                # checkpoint['losses_ts'].append(t)
+                for k, v in sorted(losses_d.items()):
+                    print('  [D] {}: {:.3f}'.format(k, v))
+                    checkpoint['D_losses'][k].append(v)
+                for k, v in sorted(losses_g.items()):
+                    print('  [G] {}: {:.3f}'.format(k, v))
+                    checkpoint['G_losses'][k].append(v)
+                checkpoint['losses_ts'].append(t)
 
             # Maybe save a checkpoint
             if t > 0 and t % args.checkpoint_every == 0:
@@ -289,7 +290,7 @@ def main(args):
                 metrics_val = check_accuracy(
                     args, val_loader, generator, discriminator, d_loss_fn
                 )
-                # print('Checking stats on train ...')
+                print('Checking stats on train ...')
                 metrics_train = check_accuracy(
                     args, train_loader, generator, discriminator,
                     d_loss_fn, limit=True
@@ -319,9 +320,9 @@ def main(args):
                 checkpoint_path = os.path.join(
                     args.output_dir, '%s_with_model.pt' % args.checkpoint_name
                 )
-                # print('Saving checkpoint to {}'.format(checkpoint_path))
+                print('Saving checkpoint to {}'.format(checkpoint_path))
                 torch.save(checkpoint, checkpoint_path)
-                # print('Done.')
+                print('Done.')
 
             t += 1
             d_steps_left = args.d_steps
@@ -330,9 +331,9 @@ def main(args):
                 break
 
         end = time.time()
-        total += (end - start)
-        if t % 10 == 1:
-            print('Average time/iteration: %.2f' % (total / (t / 2)))
+        cum += (end - start)
+        print('Time: %.2f' % (end - start))
+        print('Average time: %.2f' % (cum / itr))
 
 def discriminator_step(
     args, batch, generator, discriminator, d_loss_fn, optimizer_d
