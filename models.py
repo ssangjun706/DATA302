@@ -354,11 +354,11 @@ class CrossAttention(nn.Module):
         super(CrossAttention, self).__init__()
         self.projection = img_proj
         self.linear = nn.Sequential(
-            nn.Linear(x_size, input_size),
+            nn.Linear(x_size, x_size),
             nn.ReLU(),
             nn.Linear(x_size, 512),
             nn.ReLU(),
-            nn.Linear(512, x_size),
+            nn.Linear(512, y_size),
             nn.ReLU(),
             nn.Linear(y_size, y_size),
             nn.ReLU(),
