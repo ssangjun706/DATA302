@@ -11,7 +11,7 @@ from models import TrajectoryGenerator as TrajectoryGenerator
 from utils import relative_to_abs, get_dset_path, displacement_error, final_displacement_error
 
 parser = argparse.ArgumentParser()
-parser.add_argument('--model_path', default='model', type=str)
+parser.add_argument('--model_path', default='data302/model', type=str)
 parser.add_argument('--num_samples', default=20, type=int)
 parser.add_argument('--dset_type', default='test', type=str)
 

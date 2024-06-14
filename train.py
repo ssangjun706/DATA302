@@ -33,7 +33,7 @@ parser.add_argument('--skip', default=1, type=int)
 # Optimization
 parser.add_argument('--batch_size', default=64, type=int)
 parser.add_argument('--num_iterations', default=1000, type=int)
-parser.add_argument('--num_epochs', default=400, type=int)
+parser.add_argument('--num_epochs', default=51, type=int)
 
 # Model Options
 parser.add_argument('--embedding_dim', default=64, type=int)
@@ -78,7 +78,7 @@ parser.add_argument('--best_k', default=1, type=int)
 # Output
 parser.add_argument('--output_dir', default=os.getcwd())
 parser.add_argument('--print_every', default=5, type=int)
-parser.add_argument('--checkpoint_every', default=20, type=int)
+parser.add_argument('--checkpoint_every', default=10, type=int)
 parser.add_argument('--checkpoint_name', default='checkpoint')
 parser.add_argument('--checkpoint_start_from', default=None)
 parser.add_argument('--restore_from_checkpoint', default=1, type=int)
@@ -163,7 +163,7 @@ def main(args):
 
     discriminator.apply(init_weights)
     discriminator.type(float_dtype).train()
-    # print('Here is the discriminator'))
+    # print('Here is the discriminator')
     # print(discriminator)
 
     g_loss_fn = gan_g_loss
@@ -180,7 +180,7 @@ def main(args):
         restore_path = args.checkpoint_start_from
     elif args.restore_from_checkpoint == 1:
         restore_path = os.path.join(args.output_dir,
-                                    '%s_with_model.pt' % args.checkpoint_name)
+                                    'data302/%s_with_model.pt' % args.checkpoint_name)
 
     if restore_path is not None and os.path.isfile(restore_path):
         print('Restoring from checkpoint {}'.format(restore_path))
@@ -189,9 +189,9 @@ def main(args):
         discriminator.load_state_dict(checkpoint['d_state'])
         optimizer_g.load_state_dict(checkpoint['g_optim_state'])
         optimizer_d.load_state_dict(checkpoint['d_optim_state'])
-        t = 0#checkpoint['counters']['t']
-        epoch = 0#checkpoint['counters']['epoch']
-        checkpoint['restore_ts'].append(0) # t
+        t = 0 # checkpoint['counters']['t']
+        epoch = 0 # checkpoint['counters']['epoch']
+        checkpoint['restore_ts'].append(0) # t 
     else:
         # Starting from scratch, so initialize checkpoint data structure
         t, epoch = 0, 0
@@ -318,7 +318,7 @@ def main(args):
                 checkpoint['d_state'] = discriminator.state_dict()
                 checkpoint['d_optim_state'] = optimizer_d.state_dict()
                 checkpoint_path = os.path.join(
-                    args.output_dir, '%s_with_model.pt' % args.checkpoint_name
+                    args.output_dir, 'data302/%s_with_model.pt' % args.checkpoint_name
                 )
                 print('Saving checkpoint to {}'.format(checkpoint_path))
                 torch.save(checkpoint, checkpoint_path)
