@@ -6,7 +6,10 @@ from attrdict import AttrDict
 
 from trajectories import data_loader
 
-from models import TrajectoryGenerator as TrajectoryGenerator
+from models_gru import TrajectoryGenerator as TrajectoryGeneratorGRU
+from models_gru_cnn import TrajectoryGenerator as TrajectoryGeneratorCNN
+from models_gru_cnn_pool import TrajectoryGenerator as TrajectoryGeneratorPooling
+from models_sgan import TrajectoryGenerator as TrajectoryGeneratorSGAN
 
 from utils import relative_to_abs, get_dset_path, displacement_error, final_displacement_error
 
@@ -18,7 +21,17 @@ parser.add_argument('--dset_type', default='test', type=str)
 
 def get_generator(checkpoint):
     args = AttrDict(checkpoint['args'])
-    generator = TrajectoryGenerator(
+
+    if args.model_type == 'sgan':
+        generator_model = TrajectoryGeneratorSGAN 
+    elif args.model_type == 'gru':
+        generator_model = TrajectoryGeneratorGRU 
+    elif args.model_type == 'cnn':
+        generator_model = TrajectoryGeneratorCNN
+    else:
+        generator_model = TrajectoryGeneratorPooling
+
+    generator = generator_model(
             obs_len=args.obs_len,
             pred_len=args.pred_len,
             embedding_dim=args.embedding_dim,

@@ -12,8 +12,18 @@ import torch.optim as optim
 from trajectories import data_loader
 from utils import gan_g_loss, gan_d_loss, l2_loss, displacement_error, final_displacement_error
 
-from models import TrajectoryGenerator as TrajectoryGenerator
-from models import TrajectoryDiscriminator as TrajectoryDiscriminator
+from models_gru import TrajectoryGenerator as TrajectoryGeneratorGRU
+from models_gru import TrajectoryDiscriminator as TrajectoryDiscriminatorGRU
+
+from models_gru_cnn import TrajectoryGenerator as TrajectoryGeneratorCNN
+from models_gru_cnn import TrajectoryDiscriminator as TrajectoryDiscriminatorCNN
+
+from models_gru_cnn_pool import TrajectoryGenerator as TrajectoryGeneratorPooling
+from models_gru_cnn_pool import TrajectoryDiscriminator as TrajectoryDiscriminatorPooling
+
+from models_sgan import TrajectoryGenerator as TrajectoryGeneratorSGAN
+from models_sgan import TrajectoryDiscriminator as TrajectoryDiscriminatorSGAN
+
 
 from utils import int_tuple, bool_flag, get_total_norm
 from utils import relative_to_abs, get_dset_path
@@ -22,18 +32,20 @@ torch.backends.cudnn.benchmark = True
 
 parser = argparse.ArgumentParser()
 
+# Changed Parameters
+parser.add_argument('--dataset_name', default='ours', type=str)
+parser.add_argument('--model_type', default='sgan', type=str)
+parser.add_argument('--batch_size', default=64, type=int)
+parser.add_argument('--num_iterations', default=5000, type=int)
+parser.add_argument('--num_epochs', default=100, type=int)
+parser.add_argument('--checkpoint_every', default=20, type=int)
+
 # Dataset options
-parser.add_argument('--dataset_name', default='eth', type=str)
 parser.add_argument('--delim', default='\t')
 parser.add_argument('--loader_num_workers', default=4, type=int)
 parser.add_argument('--obs_len', default=8, type=int)
 parser.add_argument('--pred_len', default=8, type=int)
 parser.add_argument('--skip', default=1, type=int)
-
-# Optimization
-parser.add_argument('--batch_size', default=64, type=int)
-parser.add_argument('--num_iterations', default=1000, type=int)
-parser.add_argument('--num_epochs', default=51, type=int)
 
 # Model Options
 parser.add_argument('--embedding_dim', default=64, type=int)
@@ -77,8 +89,7 @@ parser.add_argument('--best_k', default=1, type=int)
 
 # Output
 parser.add_argument('--output_dir', default=os.getcwd())
-parser.add_argument('--print_every', default=5, type=int)
-parser.add_argument('--checkpoint_every', default=10, type=int)
+parser.add_argument('--print_every', default=10, type=int)
 parser.add_argument('--checkpoint_name', default='checkpoint')
 parser.add_argument('--checkpoint_start_from', default=None)
 parser.add_argument('--restore_from_checkpoint', default=1, type=int)
@@ -112,21 +123,33 @@ def main(args):
 
     long_dtype, float_dtype = get_dtypes(args)
 
-    print("Current dataset: {}".format(args.dataset_name))
-    print("Initializing train dataset")
+    print("Training Information")
+    print("[Dataset] {}".format(args.dataset_name))
+    print("[Model] {}".format(args.model_type))
+
+    print("Initializing dataset")
     train_dset, train_loader = data_loader(args, train_path)
-    print("Initializing val dataset")
     _, val_loader = data_loader(args, val_path)
 
     iterations_per_epoch = len(train_dset) / args.batch_size / args.d_steps
     if args.num_epochs:
         args.num_iterations = int(iterations_per_epoch * args.num_epochs)
 
-    print(
-        'There are {} iterations per epoch'.format(iterations_per_epoch)
-    )
 
-    generator = TrajectoryGenerator(
+    if args.model_type == 'sgan':
+        generator_model = TrajectoryGeneratorSGAN 
+        discriminator_model = TrajectoryDiscriminatorSGAN
+    elif args.model_type == 'gru':
+        generator_model = TrajectoryGeneratorGRU 
+        discriminator_model = TrajectoryDiscriminatorGRU
+    elif args.model_type == 'cnn':
+        generator_model = TrajectoryGeneratorCNN
+        discriminator_model = TrajectoryDiscriminatorCNN
+    else:
+        generator_model = TrajectoryGeneratorPooling
+        discriminator_model = TrajectoryDiscriminatorPooling
+
+    generator = generator_model(
             obs_len=args.obs_len,
             pred_len=args.pred_len,
             embedding_dim=args.embedding_dim,
@@ -147,10 +170,8 @@ def main(args):
 
     generator.apply(init_weights)
     generator.type(float_dtype).train()
-    # print('Here is the generator')
-    # print(generator)
 
-    discriminator = TrajectoryDiscriminator(
+    discriminator = discriminator_model(
             obs_len=args.obs_len,
             pred_len=args.pred_len,
             embedding_dim=args.embedding_dim,
@@ -163,8 +184,6 @@ def main(args):
 
     discriminator.apply(init_weights)
     discriminator.type(float_dtype).train()
-    # print('Here is the discriminator')
-    # print(discriminator)
 
     g_loss_fn = gan_g_loss
     d_loss_fn = gan_d_loss
@@ -174,13 +193,12 @@ def main(args):
         discriminator.parameters(), lr=args.d_learning_rate
     )
 
-    # Maybe restore from checkpoint
     restore_path = None
     if args.checkpoint_start_from is not None:
         restore_path = args.checkpoint_start_from
     elif args.restore_from_checkpoint == 1:
         restore_path = os.path.join(args.output_dir,
-                                    'data302/%s_with_model.pt' % args.checkpoint_name)
+                                    'data302/%s_%s_%s.pt' % (args.checkpoint_name, args.model_type, args.dataset_name))
 
     if restore_path is not None and os.path.isfile(restore_path):
         print('Restoring from checkpoint {}'.format(restore_path))
@@ -189,9 +207,9 @@ def main(args):
         discriminator.load_state_dict(checkpoint['d_state'])
         optimizer_g.load_state_dict(checkpoint['g_optim_state'])
         optimizer_d.load_state_dict(checkpoint['d_optim_state'])
-        t = 0 # checkpoint['counters']['t']
-        epoch = 0 # checkpoint['counters']['epoch']
-        checkpoint['restore_ts'].append(0) # t 
+        t = 0 #checkpoint['counters']['t']
+        epoch = 0 #checkpoint['counters']['epoch']
+        checkpoint['restore_ts'].append(0) #t 
     else:
         # Starting from scratch, so initialize checkpoint data structure
         t, epoch = 0, 0
@@ -257,7 +275,6 @@ def main(args):
                 t2 = time.time()
                 print('{} step took {}'.format(step_type, t2 - t1))
 
-            # Skip the rest if we are not at the end of an iteration
             if d_steps_left > 0 or g_steps_left > 0:
                 continue
 
@@ -268,7 +285,6 @@ def main(args):
                     ))
                 t0 = time.time()
 
-            # Maybe save loss
             if t % args.print_every == 0:
                 print('t = {} / {}'.format(t + 1, args.num_iterations))
                 for k, v in sorted(losses_d.items()):
@@ -279,18 +295,16 @@ def main(args):
                     checkpoint['G_losses'][k].append(v)
                 checkpoint['losses_ts'].append(t)
 
-            # Maybe save a checkpoint
             if t > 0 and t % args.checkpoint_every == 0:
                 checkpoint['counters']['t'] = t
                 checkpoint['counters']['epoch'] = epoch
                 checkpoint['sample_ts'].append(t)
 
-                # Check stats on the validation set
-                print('Checking stats on val ...')
+                print('Checking stats ...')
                 metrics_val = check_accuracy(
                     args, val_loader, generator, discriminator, d_loss_fn
                 )
-                print('Checking stats on train ...')
+                
                 metrics_train = check_accuracy(
                     args, train_loader, generator, discriminator,
                     d_loss_fn, limit=True
@@ -306,20 +320,16 @@ def main(args):
                 min_ade = min(checkpoint['metrics_val']['ade'])
 
                 if metrics_val['ade'] == min_ade:
-                    # print('New low for avg_disp_error')
                     checkpoint['best_t'] = t
                     checkpoint['g_best_state'] = generator.state_dict()
                     checkpoint['d_best_state'] = discriminator.state_dict()
 
-                # Save another checkpoint with model weights and
-                # optimizer state
                 checkpoint['g_state'] = generator.state_dict()
                 checkpoint['g_optim_state'] = optimizer_g.state_dict()
                 checkpoint['d_state'] = discriminator.state_dict()
                 checkpoint['d_optim_state'] = optimizer_d.state_dict()
                 checkpoint_path = os.path.join(
-                    args.output_dir, 'data302/%s_with_model.pt' % args.checkpoint_name
-                )
+                    args.output_dir, 'data302/%s_%s_%s.pt' % (args.checkpoint_name, args.model_type, args.dataset_name))
                 print('Saving checkpoint to {}'.format(checkpoint_path))
                 torch.save(checkpoint, checkpoint_path)
                 print('Done.')
@@ -332,7 +342,6 @@ def main(args):
 
         end = time.time()
         cum += (end - start)
-        print('Time: %.2f' % (end - start))
         print('Average time: %.2f' % (cum / itr))
 
 def discriminator_step(
@@ -356,7 +365,6 @@ def discriminator_step(
     scores_fake = discriminator(traj_fake, traj_fake_rel, seq_start_end)
     scores_real = discriminator(traj_real, traj_real_rel, seq_start_end)
 
-    # Compute loss with optional gradient penalty
     data_loss = d_loss_fn(scores_real, scores_fake)
     losses['D_data_loss'] = data_loss.item()
     loss += data_loss
