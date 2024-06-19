@@ -72,7 +72,7 @@ class Decoder(nn.Module):
         self.embedding_dim = embedding_dim
         self.pool_every_timestep = pool_every_timestep
 
-        self.decoder = nn.GRU(
+        self.decoder = nn.LSTM(
             embedding_dim, h_dim, num_layers, dropout=dropout
         )
 
@@ -120,13 +120,13 @@ class Decoder(nn.Module):
             curr_pos = rel_pos + last_pos
 
             if self.pool_every_timestep:
-                decoder_h = state
+                decoder_h = state[0]
                 pool_h = self.pool_net(decoder_h, seq_start_end, curr_pos)
                 decoder_h = torch.cat(
                     [decoder_h.view(-1, self.h_dim), pool_h], dim=1)
                 decoder_h = self.mlp(decoder_h)
                 decoder_h = torch.unsqueeze(decoder_h, 0)
-                state = decoder_h
+                state = (decoder_h, state[1])
 
             embedding_input = rel_pos
 
@@ -136,7 +136,7 @@ class Decoder(nn.Module):
             last_pos = curr_pos
 
         pred_traj_fake_rel = torch.stack(pred_traj_fake_rel, dim=0)
-        return pred_traj_fake_rel, state
+        return pred_traj_fake_rel, state[0]
 
 class PoolHiddenNet(nn.Module):
     """Pooling module as proposed in our paper"""
@@ -515,6 +515,7 @@ class TrajectoryGenerator(nn.Module):
             return False
 
     def forward(self, obs_traj, obs_img, obs_traj_rel, seq_start_end, user_noise=None):
+        batch = obs_traj_rel.size(1)
         final_encoder_h = self.encoder(obs_traj_rel)
 
         if self.pooling_type:
@@ -538,7 +539,11 @@ class TrajectoryGenerator(nn.Module):
             noise_input, seq_start_end, user_noise=user_noise)
         decoder_h = torch.unsqueeze(decoder_h, 0)
 
-        state = decoder_h
+        decoder_c = torch.zeros(
+            self.num_layers, batch, self.decoder_h_dim
+        ).cuda()
+
+        state = (decoder_h, decoder_c)
         last_pos = obs_traj[-1]
         last_pos_rel = obs_traj_rel[-1]
 

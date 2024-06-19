@@ -21,6 +21,9 @@ from models_gru_cnn import TrajectoryDiscriminator as TrajectoryDiscriminatorCNN
 from models_gru_cnn_pool import TrajectoryGenerator as TrajectoryGeneratorPooling
 from models_gru_cnn_pool import TrajectoryDiscriminator as TrajectoryDiscriminatorPooling
 
+from models_loftr import TrajectoryGenerator as TrajectoryGeneratorLoFTR
+from models_loftr import TrajectoryDiscriminator as TrajectoryDiscriminatorLoFTR
+
 from models_sgan import TrajectoryGenerator as TrajectoryGeneratorSGAN
 from models_sgan import TrajectoryDiscriminator as TrajectoryDiscriminatorSGAN
 
@@ -34,11 +37,12 @@ parser = argparse.ArgumentParser()
 
 # Changed Parameters
 parser.add_argument('--dataset_name', default='ours', type=str)
-parser.add_argument('--model_type', default='sgan', type=str)
+parser.add_argument('--model_type', default='loftr', type=str)
 parser.add_argument('--batch_size', default=64, type=int)
-parser.add_argument('--num_iterations', default=5000, type=int)
-parser.add_argument('--num_epochs', default=100, type=int)
-parser.add_argument('--checkpoint_every', default=20, type=int)
+parser.add_argument('--num_iterations', default=10000, type=int)
+parser.add_argument('--num_epochs', default=200, type=int)
+parser.add_argument('--checkpoint_every', default=10, type=int)
+parser.add_argument('--print_every', default=10, type=int)
 
 # Dataset options
 parser.add_argument('--delim', default='\t')
@@ -89,7 +93,6 @@ parser.add_argument('--best_k', default=1, type=int)
 
 # Output
 parser.add_argument('--output_dir', default=os.getcwd())
-parser.add_argument('--print_every', default=10, type=int)
 parser.add_argument('--checkpoint_name', default='checkpoint')
 parser.add_argument('--checkpoint_start_from', default=None)
 parser.add_argument('--restore_from_checkpoint', default=1, type=int)
@@ -145,9 +148,12 @@ def main(args):
     elif args.model_type == 'cnn':
         generator_model = TrajectoryGeneratorCNN
         discriminator_model = TrajectoryDiscriminatorCNN
-    else:
+    elif args.model_type == 'pool':
         generator_model = TrajectoryGeneratorPooling
         discriminator_model = TrajectoryDiscriminatorPooling
+    else:
+        generator_model = TrajectoryGeneratorLoFTR
+        discriminator_model = TrajectoryDiscriminatorLoFTR
 
     generator = generator_model(
             obs_len=args.obs_len,
@@ -207,9 +213,9 @@ def main(args):
         discriminator.load_state_dict(checkpoint['d_state'])
         optimizer_g.load_state_dict(checkpoint['g_optim_state'])
         optimizer_d.load_state_dict(checkpoint['d_optim_state'])
-        t = 0 #checkpoint['counters']['t']
-        epoch = 0 #checkpoint['counters']['epoch']
-        checkpoint['restore_ts'].append(0) #t 
+        t = checkpoint['counters']['t']
+        epoch = checkpoint['counters']['epoch']
+        checkpoint['restore_ts'].append(t) #t 
     else:
         # Starting from scratch, so initialize checkpoint data structure
         t, epoch = 0, 0
@@ -239,7 +245,6 @@ def main(args):
     t0 = None
     cum, itr = 0, 0
     while t < args.num_iterations:
-
         gc.collect()
         d_steps_left = args.d_steps
         g_steps_left = args.g_steps
@@ -285,15 +290,19 @@ def main(args):
                     ))
                 t0 = time.time()
 
+
             if t % args.print_every == 0:
-                print('t = {} / {}'.format(t + 1, args.num_iterations))
-                for k, v in sorted(losses_d.items()):
-                    print('  [D] {}: {:.3f}'.format(k, v))
-                    checkpoint['D_losses'][k].append(v)
-                for k, v in sorted(losses_g.items()):
-                    print('  [G] {}: {:.3f}'.format(k, v))
-                    checkpoint['G_losses'][k].append(v)
-                checkpoint['losses_ts'].append(t)
+                prcs = int((t / args.num_iterations) * 100)
+                print('t = {} / {} ({}%)'.format(t + 1, args.num_iterations, prcs))
+
+            #     print('t = {} / {}'.format(t + 1, args.num_iterations))
+            #     for k, v in sorted(losses_d.items()):
+            #         print('  [D] {}: {:.3f}'.format(k, v))
+            #         checkpoint['D_losses'][k].append(v)
+            #     for k, v in sorted(losses_g.items()):
+            #         print('  [G] {}: {:.3f}'.format(k, v))
+            #         checkpoint['G_losses'][k].append(v)
+            #     checkpoint['losses_ts'].append(t)
 
             if t > 0 and t % args.checkpoint_every == 0:
                 checkpoint['counters']['t'] = t

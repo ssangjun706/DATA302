@@ -476,6 +476,7 @@ class TrajectoryGenerator(nn.Module):
         batch = obs_traj_rel.size(1)
         final_encoder_h = self.encoder(obs_traj_rel)
 
+        print(final_encoder_h.shape)
         if self.pooling_type:
             end_pos = obs_traj[-1, :, :]
             pool_h = self.pool_net(final_encoder_h, seq_start_end, end_pos)
@@ -490,6 +491,8 @@ class TrajectoryGenerator(nn.Module):
         else:
             noise_input = mlp_decoder_context_input
 
+        print(noise_input.shape)
+        assert False
         decoder_h = self.add_noise(
             noise_input, seq_start_end, user_noise=user_noise)
         decoder_h = torch.unsqueeze(decoder_h, 0)

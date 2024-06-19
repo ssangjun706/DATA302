@@ -10,6 +10,7 @@ from models_gru import TrajectoryGenerator as TrajectoryGeneratorGRU
 from models_gru_cnn import TrajectoryGenerator as TrajectoryGeneratorCNN
 from models_gru_cnn_pool import TrajectoryGenerator as TrajectoryGeneratorPooling
 from models_sgan import TrajectoryGenerator as TrajectoryGeneratorSGAN
+from models_loftr import TrajectoryGenerator as TrajectoryGeneratorLoFTR
 
 from utils import relative_to_abs, get_dset_path, displacement_error, final_displacement_error
 
@@ -28,9 +29,11 @@ def get_generator(checkpoint):
         generator_model = TrajectoryGeneratorGRU 
     elif args.model_type == 'cnn':
         generator_model = TrajectoryGeneratorCNN
-    else:
+    elif args.model_type == 'pool':
         generator_model = TrajectoryGeneratorPooling
-
+    else:
+        generator_model = TrajectoryGeneratorLoFTR
+        
     generator = generator_model(
             obs_len=args.obs_len,
             pred_len=args.pred_len,
