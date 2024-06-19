@@ -1,9 +1,9 @@
 # Overview
 ## GRU Model
-![](assets/sgan-modified-no-pool.png)
+![](assets/sgan-gru.png)
 
 ## GRU with Image Pool
-![](assets/sgan-modified-pool.png)
+![](assets/sgan-gru-pool.png)
 
 ## Average running time
 - t=2000일 때 측정
