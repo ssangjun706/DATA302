@@ -6,7 +6,6 @@
 ![](assets/sgan-gru-pool.png)
 
 ## Average running time
-- t=2000일 때 측정
 
 |      | SGAN   | GRU    | GRU+CNN (1) | GRU+CNN (2) |
 | ---- | ------ | ------ | ----------- | ----------- |
@@ -15,7 +14,6 @@
 
 
 ## Performance (ADE/FDE)
-- t=2000일 때 측정
 
 |     | SGAN      | GRU         | GRU+CNN (1) | GRU+CNN (2) |
 | --- | --------- | ----------- | ----------- | ----------- |
