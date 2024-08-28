@@ -1,9 +1,4 @@
 # Overview
-## GRU Model
-![](assets/sgan-gru.png)
-
-## GRU with Image Pool
-![](assets/sgan-gru-pool.png)
 
 ## Average running time
 
